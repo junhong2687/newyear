@@ -1,14 +1,17 @@
-/* style.css */
+/* style.css (修正版) */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    user-select: none; /* 防止手機長按選取文字 */
+    -webkit-user-select: none;
 }
 
 body {
     overflow: hidden;
-    background: linear-gradient(to bottom, #000000, #0a0a20, #1a0b00); /* 從黑夜過渡到地平線的微光 */
+    background: linear-gradient(to bottom, #000000, #0a0a20, #1a0b00);
     font-family: 'Noto Serif TC', serif;
+    touch-action: none; /* 防止手機滑動畫面 */
 }
 
 #canvas {
@@ -16,61 +19,58 @@ body {
     position: absolute;
     top: 0;
     left: 0;
+    width: 100%;
+    height: 100%;
     z-index: 1;
 }
 
 #ui-layer {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     z-index: 10;
-    pointer-events: none; /* 讓點擊事件可以穿透文字傳遞給 Canvas */
-    mix-blend-mode: screen; /* 讓文字與背景煙火融合得更好 */
+    /* 關鍵修正：讓點擊事件「穿透」文字層，直達 Canvas */
+    pointer-events: none; 
+    mix-blend-mode: screen;
 }
 
 .main-title {
-    font-size: 5rem;
-    color: #FFD700; /* 黃金 */
-    letter-spacing: 10px;
-    text-shadow: 
-        0 0 10px rgba(255, 215, 0, 0.8),
-        0 0 20px rgba(255, 69, 0, 0.6);
+    font-size: clamp(3rem, 8vw, 6rem);
+    color: #FFD700;
+    letter-spacing: 0.2em;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 69, 0, 0.6);
     animation: textGlow 3s ease-in-out infinite alternate;
+    text-align: center;
 }
 
 .sub-title {
-    font-size: 1.8rem;
+    font-size: clamp(1rem, 3vw, 1.8rem);
     color: #fff;
     margin-top: 15px;
-    letter-spacing: 5px;
+    letter-spacing: 0.1em;
     opacity: 0.9;
+    text-align: center;
 }
 
 .instruction {
     font-size: 0.9rem;
     color: rgba(255, 255, 255, 0.5);
     margin-top: 30px;
+    animation: blink 2s infinite;
 }
 
 @keyframes textGlow {
-    from {
-        text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-        transform: scale(1);
-    }
-    to {
-        text-shadow: 0 0 30px rgba(255, 215, 0, 1), 0 0 60px #ff0000;
-        transform: scale(1.02);
-    }
+    from { text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); transform: scale(1); }
+    to { text-shadow: 0 0 30px rgba(255, 215, 0, 1), 0 0 60px #ff0000; transform: scale(1.02); }
 }
 
-/* 針對手機版的調整 */
-@media (max-width: 768px) {
-    .main-title {
-        font-size: 3rem;
-    }
-    .sub-title {
-        font-size: 1.2rem;
-    }
+@keyframes blink {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.8; }
 }

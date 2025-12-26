@@ -2,10 +2,94 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>2026 金馬奔騰 • 萬象更新</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        /* ==================== */
+        /* CSS 樣式區      */
+        /* ==================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none; /* 禁止選取文字 */
+            -webkit-user-select: none;
+        }
+
+        body {
+            overflow: hidden;
+            background: linear-gradient(to bottom, #000000, #0a0a20, #1a0b00); /* 夜空漸層 */
+            font-family: 'Noto Serif TC', serif;
+            touch-action: none; /* 禁止手機縮放滑動 */
+        }
+
+        /* 畫布層 (在最底下) */
+        #canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; 
+        }
+
+        /* UI 文字層 (在最上層) */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            /* 關鍵設定：pointer-events: none 讓滑鼠點擊可以穿透文字層，直達 Canvas */
+            pointer-events: none; 
+            mix-blend-mode: screen; /* 讓文字與背景煙火融合 */
+        }
+
+        .main-title {
+            font-size: clamp(3rem, 10vw, 6rem); /* 自動調整字體大小 */
+            color: #FFD700;
+            letter-spacing: 0.2em;
+            text-shadow: 
+                0 0 10px rgba(255, 215, 0, 0.8),
+                0 0 20px rgba(255, 69, 0, 0.6);
+            animation: textGlow 3s ease-in-out infinite alternate;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .sub-title {
+            font-size: clamp(1rem, 4vw, 1.8rem);
+            color: #fff;
+            margin-top: 15px;
+            letter-spacing: 0.1em;
+            opacity: 0.9;
+            text-align: center;
+        }
+
+        .instruction {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 30px;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes textGlow {
+            from { text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); transform: scale(1); }
+            to { text-shadow: 0 0 30px rgba(255, 215, 0, 1), 0 0 60px #ff0000; transform: scale(1.05); }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
+    </style>
 </head>
 <body>
 
@@ -17,6 +101,240 @@
 
     <canvas id="canvas"></canvas>
 
-    <script src="script.js"></script>
+    <script>
+        // ====================
+        //    JavaScript 邏輯區
+        // ====================
+        
+        // 確保網頁載入後才執行
+        window.onload = function() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            let w, h;
+            let particles = [];
+            let fireworks = [];
+            let stars = [];
+            let horse;
+
+            // 1. 設定畫布尺寸
+            function resize() {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize(); // 初始化執行一次
+
+            // 2. 處理互動 (滑鼠點擊 + 手機觸控)
+            function handleInteraction(e) {
+                let clientX, clientY;
+
+                // 判斷是觸控還是滑鼠
+                if(e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+
+                // 產生煙火 (目標點就是點擊位置)
+                fireworks.push(new Firework(w / 2, h, clientX, clientY));
+            }
+
+            // 綁定事件
+            window.addEventListener('mousedown', handleInteraction);
+            window.addEventListener('touchstart', handleInteraction);
+
+            // --- 類別定義 (Classes) ---
+
+            // 星星類別
+            class Star {
+                constructor() {
+                    this.x = Math.random() * w;
+                    this.y = Math.random() * h * 0.7; // 只出現在上半部
+                    this.size = Math.random() * 2;
+                    this.offset = Math.random() * 100; // 閃爍時間差
+                }
+                draw() {
+                    let alpha = Math.abs(Math.sin(Date.now() * 0.001 + this.offset));
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // 煙火火箭類別
+            class Firework {
+                constructor(sx, sy, tx, ty) {
+                    this.x = sx;
+                    this.y = sy;
+                    this.tx = tx;
+                    this.ty = ty;
+                    this.angle = Math.atan2(ty - sy, tx - sx);
+                    this.speed = 2;
+                    this.acceleration = 1.05;
+                    this.coordinates = [[this.x, this.y], [this.x, this.y], [this.x, this.y]];
+                    this.targetY = ty; 
+                }
+                update(index) {
+                    // 更新尾巴座標
+                    this.coordinates.pop();
+                    this.coordinates.unshift([this.x, this.y]);
+                    
+                    // 移動與加速
+                    this.speed *= this.acceleration;
+                    this.x += Math.cos(this.angle) * this.speed;
+                    this.y += Math.sin(this.angle) * this.speed;
+
+                    // 判斷是否到達爆炸點 (接近目標高度或飛出螢幕)
+                    if(this.y <= this.targetY || this.x < 0 || this.x > w) {
+                        createParticles(this.x, this.y);
+                        fireworks.splice(index, 1);
+                    }
+                }
+                draw() {
+                    ctx.beginPath();
+                    ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+                    ctx.lineTo(this.x, this.y);
+                    ctx.strokeStyle = '#FFD700'; // 金色軌跡
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+
+            // 爆炸粒子類別
+            class Particle {
+                constructor(x, y, color) {
+                    this.x = x;
+                    this.y = y;
+                    this.color = color;
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 5 + 1;
+                    this.vx = Math.cos(angle) * speed;
+                    this.vy = Math.sin(angle) * speed;
+                    this.alpha = 1;
+                    this.friction = 0.96; // 摩擦力
+                    this.gravity = 0.15;  // 重力
+                }
+                update(index) {
+                    this.vx *= this.friction;
+                    this.vy *= this.friction;
+                    this.vy += this.gravity;
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.alpha -= 0.02; // 淡出速度
+                    if(this.alpha <= 0) particles.splice(index, 1);
+                }
+                draw() {
+                    ctx.save();
+                    ctx.globalAlpha = this.alpha;
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            // 金馬類別
+            class Horse {
+                constructor() {
+                    this.reset();
+                }
+                reset() {
+                    this.x = -150;
+                    this.y = h - 100;
+                    this.size = Math.min(100, w * 0.15); // 手機上馬縮小
+                    this.speed = w * 0.005 + 3; // 速度隨螢幕寬度調整
+                    this.angle = 0;
+                    this.history = [];
+                }
+                update() {
+                    this.x += this.speed;
+                    this.y = (h - this.size * 1.5) + Math.sin(this.angle) * 15;
+                    this.angle += 0.2;
+                    
+                    // 記錄殘影位置
+                    this.history.push({x: this.x, y: this.y});
+                    if(this.history.length > 6) this.history.shift();
+
+                    // 跑出螢幕重置
+                    if(this.x > w + 200) this.reset();
+                }
+                draw() {
+                    // 繪製殘影
+                    this.history.forEach((pos, index) => {
+                        ctx.save();
+                        ctx.globalAlpha = index * 0.1; 
+                        ctx.translate(pos.x, pos.y);
+                        ctx.scale(-1, 1); // 左右翻轉
+                        ctx.font = `${this.size}px Arial`;
+                        ctx.fillStyle = 'rgba(255, 215, 0, 0.5)';
+                        ctx.fillText('🐎', 0, 0);
+                        ctx.restore();
+                    });
+
+                    // 繪製本體
+                    ctx.save();
+                    ctx.shadowBlur = 30;
+                    ctx.shadowColor = "#FFD700";
+                    ctx.translate(this.x, this.y);
+                    ctx.scale(-1, 1);
+                    ctx.font = `${this.size}px Arial`;
+                    ctx.fillText('🐎', 0, 0);
+                    ctx.restore();
+                }
+            }
+
+            // 輔助函式：產生爆炸粒子
+            function createParticles(x, y) {
+                const colors = ['#FF0000', '#FFD700', '#00FF00', '#00FFFF', '#FF00FF', '#FFFFFF'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                for(let i=0; i<40; i++) {
+                    particles.push(new Particle(x, y, color));
+                }
+            }
+
+            // --- 程式入口 ---
+            // 產生背景星星
+            for(let i=0; i<100; i++) stars.push(new Star());
+            horse = new Horse();
+
+            // 動畫主迴圈
+            function loop() {
+                // 1. 繪製半透明背景 (製造拖影效果)
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fillRect(0, 0, w, h);
+
+                // 2. 繪製星星 (使用 lighter 混合模式讓光點更亮)
+                ctx.globalCompositeOperation = 'lighter';
+                stars.forEach(s => s.draw());
+
+                // 3. 隨機自動放煙火
+                if(Math.random() < 0.015) {
+                    fireworks.push(new Firework(Math.random()*w, h, Math.random()*w, h*0.3));
+                }
+
+                // 4. 更新繪製煙火與粒子
+                let i = fireworks.length;
+                while(i--) { fireworks[i].draw(); fireworks[i].update(i); }
+
+                let j = particles.length;
+                while(j--) { particles[j].draw(); particles[j].update(j); }
+
+                // 5. 繪製金馬 (切回 source-over 模式)
+                ctx.globalCompositeOperation = 'source-over';
+                if(horse) { horse.update(); horse.draw(); }
+
+                requestAnimationFrame(loop);
+            }
+
+            // 開始動畫
+            loop();
+        };
+    </script>
 </body>
 </html>
